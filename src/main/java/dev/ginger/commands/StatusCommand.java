@@ -50,6 +50,18 @@ public final class StatusCommand implements Command {
             out.println("No commits yet");
         }
 
+        if (status.isMerging()) {
+            out.println();
+            out.println("You are merging '" + status.mergingBranch() + "'.");
+            if (status.conflicts().isEmpty()) {
+                out.println("All conflicts fixed; run 'ginger commit' to finish the merge.");
+            }
+        }
+        if (!status.conflicts().isEmpty()) {
+            out.println();
+            out.println("Unmerged paths (fix them, then run 'ginger add <path>'):");
+            status.conflicts().forEach(p -> out.println("  unmerged:   " + p));
+        }
         if (status.hasStagedChanges()) {
             out.println();
             out.println("Changes to be committed:");

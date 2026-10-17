@@ -1,6 +1,7 @@
 package dev.ginger.ops;
 
 import dev.ginger.index.Index;
+import dev.ginger.merge.MergeState;
 import dev.ginger.objects.ObjectId;
 import dev.ginger.objects.ObjectStore;
 import dev.ginger.objects.ObjectType;
@@ -28,6 +29,9 @@ public final class Checkout {
     }
 
     public static void moveTo(Repository repo, ObjectId target, Head newHead, boolean force) throws IOException {
+        if (MergeState.read(repo).isPresent()) {
+            throw new IOException("a merge is in progress; commit it or run 'ginger merge --abort'");
+        }
         ObjectStore store = repo.objects();
         WorkTree files = repo.files();
         Optional<ObjectId> current = repo.refs().headCommit();

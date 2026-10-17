@@ -69,6 +69,9 @@ public final class LogCommand implements Command {
                 out.println();
             }
             out.println("commit " + current);
+            if (commit.parents().size() > 1) {
+                out.println("Merge:  " + String.join(" ", commit.parents().stream().map(ObjectId::abbreviate).toList()));
+            }
             out.println("Author: " + commit.author());
             out.println("Date:   " + commit.timestamp());
             out.println();

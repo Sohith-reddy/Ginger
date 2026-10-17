@@ -88,13 +88,13 @@ public final class ObjectStore {
         byte[] data = Files.readAllBytes(path);
         ObjectId actual = HashUtil.sha256(data);
         if (!actual.equals(id)) {
-            throw new CorruptObjectException("object " + id + " is corrupt: content hashes to " + actual);
+            throw new CorruptObjectException("object " + id + " is corrupt: content hashes to " + actual + " (" + path + ")");
         }
 
         try {
             return StoredObject.decode(data);
         } catch (CorruptObjectException e) {
-            throw new CorruptObjectException("object " + id + " is corrupt: " + e.getMessage());
+            throw new CorruptObjectException("object " + id + " is corrupt: " + e.getMessage() + " (" + path + ")");
         }
     }
 

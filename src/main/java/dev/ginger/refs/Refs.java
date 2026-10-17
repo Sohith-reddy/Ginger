@@ -37,7 +37,7 @@ public final class Refs {
     public Head head() throws IOException {
         String text = Files.readString(headFile, StandardCharsets.UTF_8);
         if (!text.endsWith("\n")) {
-            throw new CorruptObjectException("HEAD is malformed");
+            throw new CorruptObjectException("HEAD is malformed (" + headFile + ")");
         }
         String value = text.substring(0, text.length() - 1);
         try {
@@ -48,7 +48,7 @@ public final class Refs {
             }
             return Head.detachedAt(ObjectId.of(value));
         } catch (IllegalArgumentException e) {
-            throw new CorruptObjectException("HEAD is malformed: " + e.getMessage());
+            throw new CorruptObjectException("HEAD is malformed: " + e.getMessage() + " (" + headFile + ")");
         }
     }
 
@@ -75,7 +75,7 @@ public final class Refs {
             }
             return Optional.of(ObjectId.of(text.substring(0, text.length() - 1)));
         } catch (IllegalArgumentException e) {
-            throw new CorruptObjectException("branch '" + name + "' is malformed: " + e.getMessage());
+            throw new CorruptObjectException("branch '" + name + "' is malformed: " + e.getMessage() + " (" + file + ")");
         }
     }
 

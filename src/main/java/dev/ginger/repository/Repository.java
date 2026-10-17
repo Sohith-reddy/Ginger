@@ -1,6 +1,7 @@
 package dev.ginger.repository;
 
 import dev.ginger.index.Index;
+import dev.ginger.objects.CorruptObjectException;
 import dev.ginger.objects.ObjectStore;
 import dev.ginger.refs.Refs;
 import dev.ginger.worktree.WorkTree;
@@ -91,7 +92,12 @@ public record Repository(Path workTree, Path gingerDir) {
     }
 
     public Index readIndex() throws IOException {
-        return Index.read(indexFile());
+        try {
+            return Index.read(indexFile());
+        } catch (CorruptObjectException e) {
+            throw new CorruptObjectException("the index at " + indexFile() + " is unreadable: " + e.getMessage()
+                    + "; replace it with an empty file and run 'ginger restore --staged .' to rebuild it from HEAD");
+        }
     }
 
     public void writeIndex(Index index) throws IOException {

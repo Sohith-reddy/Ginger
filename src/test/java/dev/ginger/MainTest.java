@@ -88,6 +88,18 @@ class MainTest {
     }
 
     @Test
+    void debugByDefaultAddsDiagnostics() {
+        CommandRegistry registry = new CommandRegistry().register(new FailingCommand());
+        Main debugMain = new Main(new CommandLineParser(), registry, new PrintStream(out, true),
+                new PrintStream(err, true), true);
+
+        assertEquals(128, debugMain.run(new String[]{"fail"}));
+        assertTrue(err.toString().contains("debug: ginger " + Main.VERSION));
+        assertTrue(err.toString().contains("command 'fail' with 0 argument(s)"));
+        assertTrue(err.toString().contains("at dev.ginger"));
+    }
+
+    @Test
     void initCreatesRepository() {
         assertEquals(0, main.run(new String[]{"init"}));
         assertTrue(Files.isDirectory(tmp.resolve(".ginger")));

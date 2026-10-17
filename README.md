@@ -1,115 +1,183 @@
 # Ginger
 
-A version control system written in Java.
+Ginger is a local version control system written in Java. It is inspired by Git but is not compatible with Git repositories or the Git command line.
+
+## Features
+
+| Area | Status |
+|---|---|
+| Repository init and discovery from subdirectories | Done |
+| Content-addressed object storage (SHA-256) | Done |
+| Staging with a persistent index | Done |
+| Commits, trees and history | Done |
+| `status`, `log`, `diff` | Done |
+| `restore`, `checkout` | Done |
+| Branches and `switch` | Done |
+| `.gingerignore` | Done, limited syntax |
+| Three-way merge with conflict markers | Done |
+| Remotes, push, pull, rebase, tags, stash | Not supported |
 
 ## Requirements
 
-- JDK 21+
-- Maven 3.9+
+- JDK 21 or later
+- Maven 3.9 or later
 
-## Build
+## Build and test
 
 ```sh
+mvn clean test
 mvn clean package
-```
-
-Produces `target/ginger-0.1.0.jar`.
-
-## Run
-
-```sh
 java -jar target/ginger-0.1.0.jar --help
-java -jar target/ginger-0.1.0.jar --version
-java -jar target/ginger-0.1.0.jar init [directory]
-java -jar target/ginger-0.1.0.jar add <path>...
-java -jar target/ginger-0.1.0.jar commit -m "message"
-java -jar target/ginger-0.1.0.jar status
-java -jar target/ginger-0.1.0.jar log
-java -jar target/ginger-0.1.0.jar diff [--staged]
-java -jar target/ginger-0.1.0.jar restore [--staged] [--force] <path>...
-java -jar target/ginger-0.1.0.jar checkout [--force] <commit-id>
-java -jar target/ginger-0.1.0.jar branch [<name>]
-java -jar target/ginger-0.1.0.jar switch [--force] <branch>
 ```
 
-Or without packaging:
+`mvn clean package` produces `target/ginger-0.1.0.jar`.
+
+## Windows launcher
+
+`ginger.bat` in the project root runs the packaged JAR so you can type `ginger` from any directory.
+
+1. Build the JAR with `mvn clean package`.
+2. Add the project folder (the one containing `ginger.bat`) to your user `Path`: Start → "Edit environment variables for your account" → `Path` → New.
+3. Open a new terminal and run `ginger --help`.
+
+The launcher passes all arguments through unchanged, so quoted messages and paths with spaces work, and it returns Ginger's exit code.
+
+Troubleshooting:
+
+- `Error: Ginger JAR not found` — run `mvn clean package` in the project folder. If you change the version in `pom.xml`, update the JAR name in `ginger.bat` too.
+- `java was not found on PATH` — install JDK 21 or later and make sure `java -version` works in a new terminal.
+- `'ginger' is not recognized` — the folder is not on `Path`, or the terminal was opened before `Path` was changed.
+
+On macOS and Linux, use an alias instead:
 
 ```sh
-mvn compile exec:java -Dexec.args="init"
+alias ginger='java -jar /path/to/Ginger/target/ginger-0.1.0.jar'
 ```
 
-## Project layout
+## Example
 
+Run this in a scratch folder, not inside the Ginger source tree.
+
+```sh
+mkdir demo && cd demo
+ginger init
+echo "hello" > README.md
+ginger add README.md
+ginger commit -m "Initial commit"
+
+ginger branch feature
+ginger switch feature
+echo "feature work" > feature.txt
+ginger add feature.txt
+ginger commit -m "Add feature"
+
+ginger switch main
+ginger merge feature
+ginger log
 ```
-src/main/java/dev/ginger/
-  Main.java              CLI entry point
-  cli/                   Argument parsing and command registry
-  commands/              One class per subcommand (init, ...)
-  repository/            Repository model and on-disk layout
-  objects/               Content-addressed objects, trees and commits
-  index/                 Staging area
-  refs/                  HEAD and branch references
-  worktree/              Safe access to files in the work tree
-  ops/                   Staging, committing, restoring and checkout
-  status/                Working tree status
-  diff/                  Line diffs
-src/test/java/           JUnit 5 tests
-```
 
-## Repository format
+## Commands
 
-`ginger init` creates a `.ginger` directory in the work tree:
+| Command | Description |
+|---|---|
+| `ginger init [<directory>]` | Create a repository. Running it again on a valid repository changes nothing. |
+| `ginger add <path>...` | Stage files, or every file under a directory. Paths are relative to the current directory. |
+| `ginger commit -m <message>` | Record the staged files as a new commit. |
+| `ginger status` | Show staged, unstaged, untracked and unmerged files. |
+| `ginger log` | Show history from `HEAD`, newest first, following first parents. |
+| `ginger diff [--staged]` | Compare the work tree with the index, or the index with `HEAD`. |
+| `ginger restore [--force] <path>...` | Copy the staged version of tracked files back into the work tree. |
+| `ginger restore --staged <path>...` | Reset index entries to `HEAD` without touching the work tree. |
+| `ginger checkout [--force] <commit-id>` | Move to a commit with a detached `HEAD`. Accepts a unique prefix of 4 or more characters. |
+| `ginger branch [<name>]` | List branches, or create one at the current commit. |
+| `ginger switch [--force] <branch>` | Move to a branch. |
+| `ginger merge <branch>` | Merge a branch into the current one. |
+| `ginger merge --abort` | Abandon a merge that stopped with conflicts. |
+
+Global options: `--help`, `--version`, `--debug`. Every command also accepts `--help`.
+
+Exit codes: `0` success, `1` unknown command or nothing to do (for example `nothing to commit` or a conflicted merge), `2` invalid arguments, `128` the command failed.
+
+### Behaviour details
+
+- **add**: symbolic links, paths through symbolic links and anything inside `.ginger` are never staged. Adding a tracked file that no longer exists stages its deletion. If any path fails, the index is left unchanged.
+- **commit**: refuses an empty message and a tree identical to `HEAD`. The author is `GINGER_AUTHOR_NAME` / `GINGER_AUTHOR_EMAIL`, then `user.name` / `user.email` in `.ginger/config`, then the system user name.
+- **diff**: binary files, files over 8 MiB, and changes needing more than 2000 line edits are reported without a line diff.
+- **restore** refuses to overwrite a file with unstaged changes unless `--force` is given.
+- **checkout** and **switch** only touch files that differ between the current commit and the target, and carry other local changes along. They refuse if a file they would change has staged or unstaged edits, or if an untracked file is in the way. `--force` discards those edits instead.
+- **branch** names may contain letters, digits, `.`, `_` and `-`. Branches cannot be created before the first commit.
+
+### Merging
+
+`ginger merge <branch>` requires a clean index and work tree for tracked files.
+
+- If the branch is already contained in `HEAD`, nothing happens.
+- If `HEAD` is an ancestor of the branch, it fast-forwards.
+- Otherwise Ginger finds the merge base and merges each file three ways. Changes that do not overlap are combined automatically, and a clean result is committed with two parents.
+
+A conflict stops the merge without moving any branch. Conflicts are reported for:
+
+- `content`: both sides changed the same lines of a text file. The file gets `<<<<<<<`, `=======` and `>>>>>>>` markers.
+- `add/add`: both sides added the same path with different content. Markers as above.
+- `modify/delete` or `delete/modify`: one side changed a file the other deleted. The changed version is left in the work tree.
+- `binary`: both sides changed a binary file. Our version is kept.
+
+To finish, edit each file, run `ginger add <path>` (or delete it and `ginger add <path>` to accept the deletion), then `ginger commit -m <message>`. `ginger status` lists the remaining unmerged paths, and `ginger diff` shows the markers. `ginger merge --abort` resets tracked files and the index to `HEAD`. While a merge is in progress, `checkout`, `switch` and another `merge` are refused.
+
+## Ignoring files
+
+A `.gingerignore` file in the repository root lists patterns, one per line:
+
+| Pattern | Matches |
+|---|---|
+| `# text` or a blank line | Nothing |
+| `*.log` | Any file or directory named like this, at any depth |
+| `build/` | Directories named `build` at any depth, and everything inside them |
+| `/secret.txt` or `docs/draft.md` | That path relative to the repository root, and everything inside it if it is a directory |
+
+`*` matches any characters except `/`, and `?` matches one character except `/`. Negation (`!`), `**` and character classes are not supported and are reported as errors.
+
+Ignore rules only affect `ginger add` on a directory and the untracked list in `ginger status`. Naming an ignored file directly in `ginger add` stages it, and tracked files are always updated regardless of the rules. `.ginger` is always excluded.
+
+## Repository layout
 
 ```
 .ginger/
-  config         version=1
-  HEAD           ref: refs/heads/main
-  index          staged files
-  objects/       content-addressed object store
-  refs/heads/    one file per branch, created on the first commit
+  config            key=value lines; version=1
+  HEAD              ref: refs/heads/<branch>, or a commit ID when detached
+  index             staged files
+  objects/ab/cd...  objects, named by their ID
+  refs/heads/       one file per branch holding a commit ID
+  MERGE_HEAD        only during a conflicted merge
+  MERGE_CONFLICTS   only during a conflicted merge
 ```
 
-- `config` holds `key=value` lines. `version` is the repository format version; other versions are rejected.
-- `HEAD` names the current branch as `ref: refs/heads/<branch>` followed by a newline.
-- Commands locate the repository by walking up from the current directory to the nearest `.ginger`.
-- Running `ginger init` in an existing valid repository changes nothing.
+Every metadata file is written to a temporary file and moved into place, so a failed write never leaves a half-written file. Malformed metadata is reported with the file's path. An unsupported `version` in `config` is rejected.
 
-## Object format
+### Objects
 
-Every object is stored as its type, a space, the payload length in decimal, a NUL byte, then the raw payload bytes:
+Every object is stored as its type, a space, the payload length in decimal, a NUL byte, then the payload:
 
 ```
 <type> <length>\0<payload>
 ```
 
-- `type` is `blob`, `tree` or `commit`.
-- The object ID is the lowercase hex SHA-256 of that whole encoding.
-- An object with ID `abcd...` is stored at `.ginger/objects/ab/cd...`.
-- Objects are written to a temporary file and moved into place, and existing valid objects are reused.
-- Reading an object re-hashes it and rejects any object whose content does not match its ID.
+The object ID is the lowercase hex SHA-256 of that whole encoding. Reading an object re-hashes it and rejects content that does not match its ID.
 
-### Trees and commits
+- **blob**: the exact file bytes.
+- **tree**: entries sorted by name, each `<blob|tree> <name>`, a NUL byte, then the 32-byte raw ID.
+- **commit**: UTF-8 text:
 
-A tree lists its entries sorted by name. Each entry is `<type> <name>`, a NUL byte, then the 32-byte raw object ID, where `type` is `blob` or `tree`.
+  ```
+  tree <id>
+  parent <id>          zero, one, or two for a merge
+  author <name> <email>
+  date <ISO-8601 UTC timestamp>
 
-A commit is UTF-8 text:
+  <message>
+  ```
 
-```
-tree <id>
-parent <id>          zero or more
-author <name> <email>
-date <ISO-8601 UTC timestamp>
-
-<message>
-```
-
-The author comes from `GINGER_AUTHOR_NAME` / `GINGER_AUTHOR_EMAIL`, then `user.name` / `user.email` in `.ginger/config`, then the system user name.
-
-A branch file in `refs/heads/` holds a commit ID followed by a newline. A detached `HEAD` holds a commit ID followed by a newline instead of a `ref:` line. Commit and tree objects are written before the branch moves, and refs are replaced atomically.
-
-## Index format
-
-The index is a binary file. An empty file means nothing is staged.
+### Index
 
 ```
 "GIDX"                 4-byte signature
@@ -122,17 +190,43 @@ count entries, sorted by path:
 checksum               SHA-256 of everything above
 ```
 
-## Commands
+An empty file means nothing is staged. If the index is reported as corrupt, replace it with an empty file and run `ginger restore --staged .` to rebuild it from `HEAD`.
 
-- `add <path>...` stages files relative to the current directory. A directory stages every file under it, and tracked files that no longer exist are removed from the index. Symbolic links and `.ginger` are never staged.
-- `commit -m <message>` records the index as a new commit. It refuses an empty message or a tree identical to `HEAD`.
-- `status` compares `HEAD`, the index and the work tree separately.
-- `log` follows first parents from `HEAD`, newest first.
-- `diff` compares the work tree with the index. `diff --staged` compares the index with `HEAD`. Binary files and files over 8 MiB are reported without a line diff.
-- `restore <path>...` copies the staged version of tracked files back into the work tree. It refuses to overwrite a file with unstaged changes unless `--force` is given.
-- `restore --staged <path>...` resets index entries to `HEAD`, leaving the work tree alone. Files that are not in `HEAD` are unstaged.
-- `checkout <commit-id>` moves to a commit with a detached `HEAD`. A unique prefix of at least 4 characters is accepted.
-- `branch` lists branches with `*` on the current one. `branch <name>` creates a branch at the current commit; it fails before the first commit, for duplicates, and for names other than letters, digits, `.`, `_` and `-`.
-- `switch <branch>` moves to a branch and attaches `HEAD` to it.
+## Debugging
 
-`checkout` and `switch` only touch files that differ between the current commit and the target. Local changes to other files are carried over. They refuse to run if a changed file has staged or unstaged edits, or if an untracked file is in the way; `--force` discards those edits instead. Files are written through a temporary file, symbolic links are never followed, and `HEAD` and the index are only updated after every file has been written. A filesystem cannot replace a whole work tree atomically, so if a write fails partway the work tree can be partially updated while `HEAD` still points at the old commit; rerunning the command with `--force` completes it.
+Errors are printed as one `fatal:` line on standard error. Add `--debug` before the command, or set the environment variable `GINGER_DEBUG=1`, to also print the Ginger, Java and OS versions, the command name and a stack trace. File contents are never printed.
+
+```sh
+ginger --debug status
+```
+
+## Known limitations
+
+- Not compatible with Git repositories or Git's command line.
+- Only regular files are tracked. Symbolic links, empty directories and file permissions such as the executable bit are not recorded.
+- Objects are stored uncompressed, and files are read fully into memory.
+- `checkout`, `switch` and `merge` write files one at a time. A filesystem cannot replace a whole work tree atomically, so if a write fails partway the work tree can be partially updated while `HEAD` still points at the old commit. Rerunning the command with `--force` completes a checkout or switch. After a failed merge, `ginger restore --staged .` followed by `ginger restore --force .` returns tracked files to `HEAD`.
+- `log` follows first parents only.
+- With criss-cross history that has several equally good merge bases, the most recent one is used.
+- File names that the operating system cannot represent in its file-name encoding cannot be stored. On Linux and macOS, run with a UTF-8 locale.
+
+## Project layout
+
+```
+src/main/java/dev/ginger/
+  Main.java      CLI entry point
+  cli/           Argument parsing and command registry
+  commands/      One class per command
+  repository/    Repository init, discovery and validation
+  objects/       Objects, trees, commits and the object store
+  index/         Staging area
+  refs/          HEAD and branches
+  worktree/      Safe work-tree access and ignore rules
+  ops/           Staging, committing, restore, checkout and merge
+  status/        Status calculation
+  diff/          Line diffs
+  merge/         Merge base, three-way text merge and merge state
+  util/          Atomic file writes
+src/test/java/   JUnit 5 tests
+ginger.bat       Windows launcher
+```
