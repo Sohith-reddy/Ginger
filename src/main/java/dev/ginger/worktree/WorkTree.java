@@ -34,9 +34,15 @@ public final class WorkTree {
             throw new IOException("'" + arg + "' is outside the repository");
         }
         Path rel = root.relativize(abs);
+        Path current = root;
+        int remaining = rel.toString().isEmpty() ? 0 : rel.getNameCount();
         for (Path part : rel) {
             if (part.toString().equals(Repository.GINGER_DIR)) {
                 throw new IOException("'" + arg + "' is inside the repository metadata");
+            }
+            current = current.resolve(part);
+            if (--remaining > 0 && Files.isSymbolicLink(current)) {
+                throw new IOException("'" + arg + "' is beyond a symbolic link");
             }
         }
         return toRepoPath(rel);
@@ -67,11 +73,22 @@ public final class WorkTree {
     }
 
     public boolean isFile(String path) {
-        return Files.isRegularFile(resolve(path), LinkOption.NOFOLLOW_LINKS);
+        Path file = resolve(path);
+        for (Path dir = file.getParent(); !dir.equals(root); dir = dir.getParent()) {
+            if (Files.isSymbolicLink(dir)) {
+                return false;
+            }
+        }
+        return Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS);
+    }
+
+    public IgnoreRules ignoreRules() throws IOException {
+        return IgnoreRules.load(root);
     }
 
     public byte[] read(String path) throws IOException {
         Path file = resolve(path);
+        checkNoLinks(file.getParent());
         if (!Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS)) {
             throw new IOException("'" + path + "' is not a regular file");
         }

@@ -12,6 +12,7 @@ import dev.ginger.commands.CommitCommand;
 import dev.ginger.commands.DiffCommand;
 import dev.ginger.commands.InitCommand;
 import dev.ginger.commands.LogCommand;
+import dev.ginger.commands.MergeCommand;
 import dev.ginger.commands.RestoreCommand;
 import dev.ginger.commands.StatusCommand;
 import dev.ginger.commands.SwitchCommand;
@@ -30,12 +31,19 @@ public final class Main {
     private final CommandRegistry registry;
     private final PrintStream out;
     private final PrintStream err;
+    private final boolean debugByDefault;
 
     public Main(CommandLineParser parser, CommandRegistry registry, PrintStream out, PrintStream err) {
+        this(parser, registry, out, err, false);
+    }
+
+    public Main(CommandLineParser parser, CommandRegistry registry, PrintStream out, PrintStream err,
+                boolean debugByDefault) {
         this.parser = parser;
         this.registry = registry;
         this.out = out;
         this.err = err;
+        this.debugByDefault = debugByDefault;
     }
 
     public int run(String[] args) {
@@ -85,7 +93,10 @@ public final class Main {
         } catch (Exception e) {
             String message = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
             err.println("fatal: " + message);
-            if (parsed.debug()) {
+            if (parsed.debug() || debugByDefault) {
+                err.println("debug: ginger " + VERSION + ", java " + System.getProperty("java.version")
+                        + ", " + System.getProperty("os.name") + ", command '" + command.name() + "' with "
+                        + args.size() + " argument(s), " + e.getClass().getName());
                 e.printStackTrace(err);
             }
             return 128;
@@ -112,8 +123,10 @@ public final class Main {
                 .register(new RestoreCommand(cwd))
                 .register(new CheckoutCommand(System.out, cwd))
                 .register(new BranchCommand(System.out, cwd))
-                .register(new SwitchCommand(System.out, cwd));
-        Main main = new Main(new CommandLineParser(), registry, System.out, System.err);
+                .register(new SwitchCommand(System.out, cwd))
+                .register(new MergeCommand(System.out, cwd, System.getenv(), Clock.systemUTC()));
+        boolean debug = !System.getenv().getOrDefault("GINGER_DEBUG", "").isEmpty();
+        Main main = new Main(new CommandLineParser(), registry, System.out, System.err, debug);
         System.exit(main.run(args));
     }
 }

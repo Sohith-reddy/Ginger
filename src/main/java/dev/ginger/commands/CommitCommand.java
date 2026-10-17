@@ -2,9 +2,9 @@ package dev.ginger.commands;
 
 import dev.ginger.cli.UsageException;
 import dev.ginger.ops.Committer;
+import dev.ginger.ops.Identity;
 import dev.ginger.repository.Repository;
 
-import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.file.Path;
 import java.time.Clock;
@@ -54,7 +54,7 @@ public final class CommitCommand implements Command {
     @Override
     public int execute(List<String> args) throws Exception {
         Repository repo = Repository.find(workingDirectory);
-        Optional<Committer.Result> result = Committer.commit(repo, args.get(1), author(repo), clock.instant());
+        Optional<Committer.Result> result = Committer.commit(repo, args.get(1), Identity.author(repo, env), clock.instant());
         if (result.isEmpty()) {
             out.println("nothing to commit");
             return 1;
@@ -65,13 +65,5 @@ public final class CommitCommand implements Command {
         String root = r.commit().parents().isEmpty() ? " (root-commit)" : "";
         out.println("[" + where + root + " " + r.id().abbreviate() + "] " + r.commit().summary());
         return 0;
-    }
-
-    private String author(Repository repo) throws IOException {
-        Map<String, String> config = repo.readConfig();
-        String name = env.getOrDefault("GINGER_AUTHOR_NAME",
-                config.getOrDefault("user.name", System.getProperty("user.name", "unknown")));
-        String email = env.getOrDefault("GINGER_AUTHOR_EMAIL", config.get("user.email"));
-        return email == null || email.isBlank() ? name : name + " <" + email + ">";
     }
 }
