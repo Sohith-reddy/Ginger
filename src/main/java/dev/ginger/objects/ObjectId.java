@@ -23,6 +23,14 @@ public record ObjectId(String hex) {
         return new ObjectId(HexFormat.of().formatHex(digest));
     }
 
+    public byte[] toBytes() {
+        return HexFormat.of().parseHex(hex);
+    }
+
+    public String abbreviate() {
+        return hex.substring(0, 7);
+    }
+
     public String directory() {
         return hex.substring(0, 2);
     }

@@ -4,11 +4,17 @@ import dev.ginger.cli.CommandLineParser;
 import dev.ginger.cli.CommandRegistry;
 import dev.ginger.cli.ParsedCommand;
 import dev.ginger.cli.UsageException;
+import dev.ginger.commands.AddCommand;
 import dev.ginger.commands.Command;
+import dev.ginger.commands.CommitCommand;
+import dev.ginger.commands.DiffCommand;
 import dev.ginger.commands.InitCommand;
+import dev.ginger.commands.LogCommand;
+import dev.ginger.commands.StatusCommand;
 
 import java.io.PrintStream;
 import java.nio.file.Path;
+import java.time.Clock;
 import java.util.List;
 import java.util.Optional;
 
@@ -91,8 +97,14 @@ public final class Main {
     }
 
     public static void main(String[] args) {
+        Path cwd = Path.of("").toAbsolutePath();
         CommandRegistry registry = new CommandRegistry()
-                .register(new InitCommand(System.out, Path.of("").toAbsolutePath()));
+                .register(new InitCommand(System.out, cwd))
+                .register(new AddCommand(cwd))
+                .register(new CommitCommand(System.out, cwd, System.getenv(), Clock.systemUTC()))
+                .register(new StatusCommand(System.out, cwd))
+                .register(new LogCommand(System.out, cwd))
+                .register(new DiffCommand(System.out, cwd));
         Main main = new Main(new CommandLineParser(), registry, System.out, System.err);
         System.exit(main.run(args));
     }

@@ -1,6 +1,9 @@
 package dev.ginger.repository;
 
+import dev.ginger.index.Index;
 import dev.ginger.objects.ObjectStore;
+import dev.ginger.refs.Refs;
+import dev.ginger.worktree.WorkTree;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -79,6 +82,22 @@ public record Repository(Path workTree, Path gingerDir) {
         return new ObjectStore(objectsDir());
     }
 
+    public Refs refs() {
+        return new Refs(headFile(), headsDir());
+    }
+
+    public WorkTree files() {
+        return new WorkTree(workTree);
+    }
+
+    public Index readIndex() throws IOException {
+        return Index.read(indexFile());
+    }
+
+    public void writeIndex(Index index) throws IOException {
+        index.write(indexFile());
+    }
+
     public Path headsDir() {
         return gingerDir.resolve("refs").resolve("heads");
     }
@@ -103,7 +122,7 @@ public record Repository(Path workTree, Path gingerDir) {
         }
     }
 
-    private Map<String, String> readConfig() throws IOException {
+    public Map<String, String> readConfig() throws IOException {
         Map<String, String> config = new HashMap<>();
         for (String line : Files.readAllLines(configFile())) {
             int eq = line.indexOf('=');

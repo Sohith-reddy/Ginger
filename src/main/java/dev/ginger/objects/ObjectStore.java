@@ -1,10 +1,13 @@
 package dev.ginger.objects;
 
+import dev.ginger.util.AtomicFiles;
+
 import java.io.IOException;
-import java.nio.file.AtomicMoveNotSupportedException;
+import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
+import java.util.List;
 
 public final class ObjectStore {
 
@@ -31,19 +34,49 @@ public final class ObjectStore {
             return id;
         }
 
-        Files.createDirectories(target.getParent());
-        Path temp = Files.createTempFile(target.getParent(), "tmp-", null);
-        try {
-            Files.write(temp, encoded);
-            try {
-                Files.move(temp, target, StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING);
-            } catch (AtomicMoveNotSupportedException e) {
-                Files.move(temp, target, StandardCopyOption.REPLACE_EXISTING);
-            }
-        } finally {
-            Files.deleteIfExists(temp);
-        }
+        AtomicFiles.write(target, encoded);
         return id;
+    }
+
+    public ObjectId resolve(String prefix) throws IOException {
+        if (!prefix.matches("[0-9a-f]{4," + ObjectId.HEX_LENGTH + "}")) {
+            throw new IOException("invalid object id: " + prefix);
+        }
+        if (prefix.length() == ObjectId.HEX_LENGTH) {
+            ObjectId id = ObjectId.of(prefix);
+            if (!contains(id)) {
+                throw new ObjectNotFoundException(id);
+            }
+            return id;
+        }
+
+        Path dir = objectsDir.resolve(prefix.substring(0, 2));
+        List<ObjectId> matches = new ArrayList<>();
+        if (Files.isDirectory(dir)) {
+            try (DirectoryStream<Path> files = Files.newDirectoryStream(dir)) {
+                for (Path file : files) {
+                    String hex = prefix.substring(0, 2) + file.getFileName();
+                    if (hex.startsWith(prefix) && hex.length() == ObjectId.HEX_LENGTH && Files.isRegularFile(file)) {
+                        matches.add(ObjectId.of(hex));
+                    }
+                }
+            }
+        }
+        if (matches.isEmpty()) {
+            throw new IOException("unknown object id: " + prefix);
+        }
+        if (matches.size() > 1) {
+            throw new IOException("ambiguous object id: " + prefix);
+        }
+        return matches.get(0);
+    }
+
+    public StoredObject read(ObjectId id, ObjectType expected) throws IOException {
+        StoredObject object = read(id);
+        if (object.type() != expected) {
+            throw new IOException("object " + id + " is a " + object.type().label() + ", not a " + expected.label());
+        }
+        return object;
     }
 
     public StoredObject read(ObjectId id) throws IOException {
