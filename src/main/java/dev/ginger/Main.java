@@ -5,12 +5,16 @@ import dev.ginger.cli.CommandRegistry;
 import dev.ginger.cli.ParsedCommand;
 import dev.ginger.cli.UsageException;
 import dev.ginger.commands.AddCommand;
+import dev.ginger.commands.BranchCommand;
+import dev.ginger.commands.CheckoutCommand;
 import dev.ginger.commands.Command;
 import dev.ginger.commands.CommitCommand;
 import dev.ginger.commands.DiffCommand;
 import dev.ginger.commands.InitCommand;
 import dev.ginger.commands.LogCommand;
+import dev.ginger.commands.RestoreCommand;
 import dev.ginger.commands.StatusCommand;
+import dev.ginger.commands.SwitchCommand;
 
 import java.io.PrintStream;
 import java.nio.file.Path;
@@ -104,7 +108,11 @@ public final class Main {
                 .register(new CommitCommand(System.out, cwd, System.getenv(), Clock.systemUTC()))
                 .register(new StatusCommand(System.out, cwd))
                 .register(new LogCommand(System.out, cwd))
-                .register(new DiffCommand(System.out, cwd));
+                .register(new DiffCommand(System.out, cwd))
+                .register(new RestoreCommand(cwd))
+                .register(new CheckoutCommand(System.out, cwd))
+                .register(new BranchCommand(System.out, cwd))
+                .register(new SwitchCommand(System.out, cwd));
         Main main = new Main(new CommandLineParser(), registry, System.out, System.err);
         System.exit(main.run(args));
     }

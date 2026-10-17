@@ -26,6 +26,10 @@ java -jar target/ginger-0.1.0.jar commit -m "message"
 java -jar target/ginger-0.1.0.jar status
 java -jar target/ginger-0.1.0.jar log
 java -jar target/ginger-0.1.0.jar diff [--staged]
+java -jar target/ginger-0.1.0.jar restore [--staged] [--force] <path>...
+java -jar target/ginger-0.1.0.jar checkout [--force] <commit-id>
+java -jar target/ginger-0.1.0.jar branch [<name>]
+java -jar target/ginger-0.1.0.jar switch [--force] <branch>
 ```
 
 Or without packaging:
@@ -46,7 +50,7 @@ src/main/java/dev/ginger/
   index/                 Staging area
   refs/                  HEAD and branch references
   worktree/              Safe access to files in the work tree
-  ops/                   Staging and committing
+  ops/                   Staging, committing, restoring and checkout
   status/                Working tree status
   diff/                  Line diffs
 src/test/java/           JUnit 5 tests
@@ -101,7 +105,7 @@ date <ISO-8601 UTC timestamp>
 
 The author comes from `GINGER_AUTHOR_NAME` / `GINGER_AUTHOR_EMAIL`, then `user.name` / `user.email` in `.ginger/config`, then the system user name.
 
-A branch file in `refs/heads/` holds a commit ID followed by a newline. Commit and tree objects are written before the branch moves, and refs are replaced atomically.
+A branch file in `refs/heads/` holds a commit ID followed by a newline. A detached `HEAD` holds a commit ID followed by a newline instead of a `ref:` line. Commit and tree objects are written before the branch moves, and refs are replaced atomically.
 
 ## Index format
 
@@ -125,3 +129,10 @@ checksum               SHA-256 of everything above
 - `status` compares `HEAD`, the index and the work tree separately.
 - `log` follows first parents from `HEAD`, newest first.
 - `diff` compares the work tree with the index. `diff --staged` compares the index with `HEAD`. Binary files and files over 8 MiB are reported without a line diff.
+- `restore <path>...` copies the staged version of tracked files back into the work tree. It refuses to overwrite a file with unstaged changes unless `--force` is given.
+- `restore --staged <path>...` resets index entries to `HEAD`, leaving the work tree alone. Files that are not in `HEAD` are unstaged.
+- `checkout <commit-id>` moves to a commit with a detached `HEAD`. A unique prefix of at least 4 characters is accepted.
+- `branch` lists branches with `*` on the current one. `branch <name>` creates a branch at the current commit; it fails before the first commit, for duplicates, and for names other than letters, digits, `.`, `_` and `-`.
+- `switch <branch>` moves to a branch and attaches `HEAD` to it.
+
+`checkout` and `switch` only touch files that differ between the current commit and the target. Local changes to other files are carried over. They refuse to run if a changed file has staged or unstaged edits, or if an untracked file is in the way; `--force` discards those edits instead. Files are written through a temporary file, symbolic links are never followed, and `HEAD` and the index are only updated after every file has been written. A filesystem cannot replace a whole work tree atomically, so if a write fails partway the work tree can be partially updated while `HEAD` still points at the old commit; rerunning the command with `--force` completes it.
