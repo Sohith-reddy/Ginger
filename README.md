@@ -37,6 +37,7 @@ src/main/java/dev/ginger/
   cli/                   Argument parsing and command registry
   commands/              One class per subcommand (init, ...)
   repository/            Repository model and on-disk layout
+  objects/               Content-addressed object storage
 src/test/java/           JUnit 5 tests
 ```
 
@@ -57,3 +58,17 @@ src/test/java/           JUnit 5 tests
 - `HEAD` names the current branch as `ref: refs/heads/<branch>` followed by a newline.
 - Commands locate the repository by walking up from the current directory to the nearest `.ginger`.
 - Running `ginger init` in an existing valid repository changes nothing.
+
+## Object format
+
+Every object is stored as its type, a space, the payload length in decimal, a NUL byte, then the raw payload bytes:
+
+```
+<type> <length>\0<payload>
+```
+
+- `type` is `blob`, `tree` or `commit`.
+- The object ID is the lowercase hex SHA-256 of that whole encoding.
+- An object with ID `abcd...` is stored at `.ginger/objects/ab/cd...`.
+- Objects are written to a temporary file and moved into place, and existing valid objects are reused.
+- Reading an object re-hashes it and rejects any object whose content does not match its ID.

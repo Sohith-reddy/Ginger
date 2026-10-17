@@ -1,5 +1,7 @@
 package dev.ginger.repository;
 
+import dev.ginger.objects.ObjectStore;
+
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -71,6 +73,10 @@ public record Repository(Path workTree, Path gingerDir) {
 
     public Path objectsDir() {
         return gingerDir.resolve("objects");
+    }
+
+    public ObjectStore objects() {
+        return new ObjectStore(objectsDir());
     }
 
     public Path headsDir() {
