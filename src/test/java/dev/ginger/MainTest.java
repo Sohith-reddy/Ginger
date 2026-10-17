@@ -16,7 +16,6 @@ import java.nio.file.Path;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class MainTest {
@@ -32,7 +31,7 @@ class MainTest {
     void setUp() {
         PrintStream outStream = new PrintStream(out, true);
         CommandRegistry registry = new CommandRegistry()
-                .register(new InitCommand(outStream))
+                .register(new InitCommand(outStream, tmp))
                 .register(new EchoCommand(outStream))
                 .register(new FailingCommand());
         main = new Main(new CommandLineParser(), registry, outStream, new PrintStream(err, true));
@@ -90,9 +89,36 @@ class MainTest {
 
     @Test
     void initCreatesRepository() {
-        assertEquals(0, main.run(new String[]{"init", tmp.toString()}));
+        assertEquals(0, main.run(new String[]{"init"}));
         assertTrue(Files.isDirectory(tmp.resolve(".ginger")));
-        assertFalse(out.toString().isEmpty());
+        assertTrue(out.toString().startsWith("Initialized empty Ginger repository"));
+    }
+
+    @Test
+    void initWithDirectoryIsRelativeToWorkingDirectory() {
+        assertEquals(0, main.run(new String[]{"init", "project"}));
+        assertTrue(Files.isDirectory(tmp.resolve("project/.ginger")));
+    }
+
+    @Test
+    void reinitKeepsExistingData() throws Exception {
+        main.run(new String[]{"init"});
+        Path head = tmp.resolve(".ginger/HEAD");
+        Files.writeString(head, "ref: refs/heads/dev\n");
+        out.reset();
+
+        assertEquals(0, main.run(new String[]{"init"}));
+        assertTrue(out.toString().startsWith("Reinitialized existing Ginger repository"));
+        assertEquals("ref: refs/heads/dev\n", Files.readString(head));
+    }
+
+    @Test
+    void initOverInvalidMetadataFails() throws Exception {
+        Files.writeString(tmp.resolve(".ginger"), "not a directory");
+
+        assertEquals(128, main.run(new String[]{"init"}));
+        assertTrue(err.toString().startsWith("fatal: not a valid ginger repository"));
+        assertEquals("not a directory", Files.readString(tmp.resolve(".ginger")));
     }
 
     private record EchoCommand(PrintStream out) implements Command {

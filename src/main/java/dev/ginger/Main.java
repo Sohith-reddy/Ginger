@@ -8,6 +8,7 @@ import dev.ginger.commands.Command;
 import dev.ginger.commands.InitCommand;
 
 import java.io.PrintStream;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
 
@@ -91,7 +92,7 @@ public final class Main {
 
     public static void main(String[] args) {
         CommandRegistry registry = new CommandRegistry()
-                .register(new InitCommand(System.out));
+                .register(new InitCommand(System.out, Path.of("").toAbsolutePath()));
         Main main = new Main(new CommandLineParser(), registry, System.out, System.err);
         System.exit(main.run(args));
     }

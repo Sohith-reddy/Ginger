@@ -39,3 +39,21 @@ src/main/java/dev/ginger/
   repository/            Repository model and on-disk layout
 src/test/java/           JUnit 5 tests
 ```
+
+## Repository format
+
+`ginger init` creates a `.ginger` directory in the work tree:
+
+```
+.ginger/
+  config         version=1
+  HEAD           ref: refs/heads/main
+  index          empty until files are staged
+  objects/       content-addressed object store
+  refs/heads/    one file per branch, created on the first commit
+```
+
+- `config` holds `key=value` lines. `version` is the repository format version; other versions are rejected.
+- `HEAD` names the current branch as `ref: refs/heads/<branch>` followed by a newline.
+- Commands locate the repository by walking up from the current directory to the nearest `.ginger`.
+- Running `ginger init` in an existing valid repository changes nothing.
