@@ -1,70 +1,98 @@
 package dev.ginger;
 
-import dev.ginger.command.Command;
-import dev.ginger.command.InitCommand;
+import dev.ginger.cli.CommandLineParser;
+import dev.ginger.cli.CommandRegistry;
+import dev.ginger.cli.ParsedCommand;
+import dev.ginger.cli.UsageException;
+import dev.ginger.commands.Command;
+import dev.ginger.commands.InitCommand;
 
-import java.util.Arrays;
-import java.util.LinkedHashMap;
-import java.util.Map;
+import java.io.PrintStream;
+import java.util.List;
+import java.util.Optional;
 
-/**
- * Entry point for the Ginger command-line interface.
- */
 public final class Main {
 
     public static final String VERSION = "0.1.0";
 
-    private final Map<String, Command> commands = new LinkedHashMap<>();
+    private final CommandLineParser parser;
+    private final CommandRegistry registry;
+    private final PrintStream out;
+    private final PrintStream err;
 
-    public Main() {
-        register(new InitCommand());
-    }
-
-    private void register(Command command) {
-        commands.put(command.name(), command);
+    public Main(CommandLineParser parser, CommandRegistry registry, PrintStream out, PrintStream err) {
+        this.parser = parser;
+        this.registry = registry;
+        this.out = out;
+        this.err = err;
     }
 
     public int run(String[] args) {
-        if (args.length == 0) {
-            printUsage();
-            return 0;
+        ParsedCommand parsed;
+        try {
+            parsed = parser.parse(args);
+        } catch (UsageException e) {
+            err.println("ginger: " + e.getMessage());
+            err.println("See 'ginger --help'.");
+            return 2;
         }
 
-        return switch (args[0]) {
-            case "help", "--help", "-h" -> {
-                printUsage();
+        return switch (parsed.action()) {
+            case HELP -> {
+                printHelp();
                 yield 0;
             }
-            case "--version", "-v" -> {
-                System.out.println("ginger version " + VERSION);
+            case VERSION -> {
+                out.println("ginger version " + VERSION);
                 yield 0;
             }
-            default -> dispatch(args[0], Arrays.copyOfRange(args, 1, args.length));
+            case RUN -> dispatch(parsed);
         };
     }
 
-    private int dispatch(String name, String[] args) {
-        Command command = commands.get(name);
-        if (command == null) {
-            System.err.println("ginger: '" + name + "' is not a ginger command. See 'ginger help'.");
+    private int dispatch(ParsedCommand parsed) {
+        Optional<Command> found = registry.find(parsed.name());
+        if (found.isEmpty()) {
+            err.println("ginger: '" + parsed.name() + "' is not a ginger command. See 'ginger --help'.");
             return 1;
         }
+        Command command = found.get();
+        List<String> args = parsed.arguments();
+
+        if (args.contains("-h") || args.contains("--help")) {
+            out.println("usage: " + command.usage());
+            return 0;
+        }
+
         try {
+            command.validate(args);
             return command.execute(args);
+        } catch (UsageException e) {
+            err.println("error: " + e.getMessage());
+            err.println("usage: " + command.usage());
+            return 2;
         } catch (Exception e) {
-            System.err.println("fatal: " + e.getMessage());
+            String message = e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName();
+            err.println("fatal: " + message);
+            if (parsed.debug()) {
+                e.printStackTrace(err);
+            }
             return 128;
         }
     }
 
-    private void printUsage() {
-        System.out.println("usage: ginger <command> [<args>]");
-        System.out.println();
-        System.out.println("Commands:");
-        commands.values().forEach(c -> System.out.printf("   %-10s %s%n", c.name(), c.description()));
+    private void printHelp() {
+        out.println("usage: ginger [--debug] <command> [<args>]");
+        out.println("       ginger --help | --version");
+        out.println();
+        out.println("Commands:");
+        registry.all().forEach(c -> out.printf("   %-10s %s%n", c.name(), c.description()));
     }
 
     public static void main(String[] args) {
-        System.exit(new Main().run(args));
+        CommandRegistry registry = new CommandRegistry()
+                .register(new InitCommand(System.out));
+        Main main = new Main(new CommandLineParser(), registry, System.out, System.err);
+        System.exit(main.run(args));
     }
 }

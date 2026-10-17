@@ -18,7 +18,8 @@ Produces `target/ginger-0.1.0.jar`.
 ## Run
 
 ```sh
-java -jar target/ginger-0.1.0.jar help
+java -jar target/ginger-0.1.0.jar --help
+java -jar target/ginger-0.1.0.jar --version
 java -jar target/ginger-0.1.0.jar init [directory]
 ```
 
@@ -32,8 +33,9 @@ mvn compile exec:java -Dexec.args="init"
 
 ```
 src/main/java/dev/ginger/
-  Main.java              CLI entry point and command dispatch
-  command/               One class per subcommand (init, ...)
+  Main.java              CLI entry point
+  cli/                   Argument parsing and command registry
+  commands/              One class per subcommand (init, ...)
   repository/            Repository model and on-disk layout
 src/test/java/           JUnit 5 tests
 ```
