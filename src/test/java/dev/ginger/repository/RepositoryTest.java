@@ -1,4 +1,4 @@
-package com.ginger.repository;
+package dev.ginger.repository;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;

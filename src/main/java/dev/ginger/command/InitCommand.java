@@ -1,6 +1,6 @@
-package com.ginger.command;
+package dev.ginger.command;
 
-import com.ginger.repository.Repository;
+import dev.ginger.repository.Repository;
 
 import java.nio.file.Path;
 

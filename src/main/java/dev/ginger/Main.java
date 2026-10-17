@@ -1,7 +1,7 @@
-package com.ginger;
+package dev.ginger;
 
-import com.ginger.command.Command;
-import com.ginger.command.InitCommand;
+import dev.ginger.command.Command;
+import dev.ginger.command.InitCommand;
 
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -10,13 +10,13 @@ import java.util.Map;
 /**
  * Entry point for the Ginger command-line interface.
  */
-public final class Ginger {
+public final class Main {
 
     public static final String VERSION = "0.1.0";
 
     private final Map<String, Command> commands = new LinkedHashMap<>();
 
-    public Ginger() {
+    public Main() {
         register(new InitCommand());
     }
 
@@ -65,6 +65,6 @@ public final class Ginger {
     }
 
     public static void main(String[] args) {
-        System.exit(new Ginger().run(args));
+        System.exit(new Main().run(args));
     }
 }

@@ -1,4 +1,4 @@
-package com.ginger.repository;
+package dev.ginger.repository;
 
 import java.io.IOException;
 import java.nio.file.Files;

@@ -13,13 +13,13 @@ A version control system written in Java.
 mvn clean package
 ```
 
-Produces `target/ginger.jar`.
+Produces `target/ginger-0.1.0.jar`.
 
 ## Run
 
 ```sh
-java -jar target/ginger.jar help
-java -jar target/ginger.jar init [directory]
+java -jar target/ginger-0.1.0.jar help
+java -jar target/ginger-0.1.0.jar init [directory]
 ```
 
 Or without packaging:
@@ -31,8 +31,8 @@ mvn compile exec:java -Dexec.args="init"
 ## Project layout
 
 ```
-src/main/java/com/ginger/
-  Ginger.java            CLI entry point and command dispatch
+src/main/java/dev/ginger/
+  Main.java              CLI entry point and command dispatch
   command/               One class per subcommand (init, ...)
   repository/            Repository model and on-disk layout
 src/test/java/           JUnit 5 tests

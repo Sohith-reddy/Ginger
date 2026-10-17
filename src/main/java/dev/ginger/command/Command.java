@@ -1,4 +1,4 @@
-package com.ginger.command;
+package dev.ginger.command;
 
 /**
  * A single ginger subcommand, e.g. {@code ginger init}.

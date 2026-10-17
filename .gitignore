@@ -1,6 +1,11 @@
 # Maven
 target/
 
+# Build output
+*.class
+*.log
+out/
+
 # IDE
 .idea/
 *.iml
